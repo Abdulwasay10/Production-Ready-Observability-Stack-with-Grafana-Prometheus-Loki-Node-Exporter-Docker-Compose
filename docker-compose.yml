@@ -1,0 +1,78 @@
+
+version: '3.7'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - prometheus-data:/prometheus
+      - /home/glsadmin/gls/gls-logging/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: unless-stopped
+    
+  grafana:
+     image: grafana/grafana:11.6.0
+     ports:
+       - "3101:3000"
+     environment:
+       - GF_SECURITY_ADMIN_USER=admin       
+       - GF_SECURITY_ADMIN_PASSWORD=admin   
+       - GF_SERVER_ROOT_URL=https://dev-360.gls-us.com/grafana/
+       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+     volumes:
+       - grafana-data:/var/lib/grafana
+     networks:
+       - app-network
+     restart: unless-stopped
+       
+  loki:
+    image: grafana/loki:2.9.3
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+      - /home/glsadmin/gls/gls-logging/loki/config.yaml:/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    volumes:
+      - /var/log:/var/log/nginx
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /home/glsadmin/gls/gls-logging/promtail/config.yaml:/etc/promtail/config.yaml
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+   # container_name: node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - app-network
+    restart: unless-stopped
+
+
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+
